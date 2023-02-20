@@ -5,9 +5,12 @@ TODO: description of file
 import cv2 as cv
 import numpy as np
 import tensorflow.keras.preprocessing.image as kimage
+from math import floor
+import logging
 
 from .generator import VideoFrameGenerator
 
+log = logging.getLogger()
 
 class SplitFrameGenerator(VideoFrameGenerator):
     """
@@ -30,51 +33,15 @@ class SplitFrameGenerator(VideoFrameGenerator):
         will be replaced by one of the class list
     """
 
-    def __init__(self, *args, sequence_time: int = None, **kwargs):
+    def __init__(self, *args, nb_frames=5, **kwargs):
         super().__init__(no_epoch_at_init=True, *args, **kwargs)
         # self.sequence_time = sequence_time
-        super().__init__(nb_frames=nb_frames + 1, *args, **kwargs)
+        super().__init__(nb_frames=nb_frames, *args, **kwargs)
+        # self.nb_frames = nb_frames
         self.sample_count = 0
         self.vid_info = []
         self.__frame_cache = {}
-        self.__init_length()
         self.on_epoch_end()
-
-    def __init_length(self):
-        count = 0
-        print("Checking files to find possible sequences, please wait...")
-        for filename in self.files:
-            cap = cv.VideoCapture(filename)
-            fps = cap.get(cv.CAP_PROP_FPS)
-            frame_count = self.count_frames(cap, filename)
-            cap.release()
-
-            if self.sequence_time is not None:
-                seqtime = int(fps * self.sequence_time)
-            else:
-                seqtime = int(frame_count)
-
-            stop_at = int(seqtime - self.nbframe)
-            step = np.ceil(seqtime / self.nbframe).astype(np.int) - 1
-            i = 0
-            while stop_at > 0 and i <= frame_count - stop_at: # modified condition to ignore short video
-                self.vid_info.append(
-                    {
-                        "id": count,
-                        "name": filename,
-                        "frame_count": int(frame_count),
-                        "frames": np.arange(i, i + stop_at)[::step][: self.nbframe],
-                        "fps": fps,
-                    }
-                )
-                count += 1
-                i += 1
-
-        print(
-            "For %d files, I found %d possible sequence samples"
-            % (self.files_count, len(self.vid_info))
-        )
-        self.indexes = np.arange(len(self.vid_info))
 
     def on_epoch_end(self):
         # prepare transformation to avoid __getitem__ to reinitialize them
@@ -94,7 +61,6 @@ class SplitFrameGenerator(VideoFrameGenerator):
     def get_validation_generator(self):
         """ Return the validation generator if you've provided split factor """
         return self.__class__(
-            sequence_time=self.sequence_time,
             nb_frames=self.nbframe,
             nb_channel=self.nb_channel,
             target_shape=self.target_shape,
@@ -109,7 +75,6 @@ class SplitFrameGenerator(VideoFrameGenerator):
     def get_test_generator(self):
         """ Return the validation generator if you've provided split factor """
         return self.__class__(
-            sequence_time=self.sequence_time,
             nb_frames=self.nbframe,
             nb_channel=self.nb_channel,
             target_shape=self.target_shape,
@@ -122,8 +87,7 @@ class SplitFrameGenerator(VideoFrameGenerator):
         )
 
     def _get_frames(
-        self, video, nbframe, shape, fps, total_frames, force_no_headers=False
-    ) -> Optional[Iterable]:
+        self, video, nbframe, shape, fps, total_frames, force_no_headers=False):
         cap = cv.VideoCapture(video)
         total_frames = self.count_frames(cap, video, force_no_headers)
         orig_total = total_frames
@@ -138,15 +102,13 @@ class SplitFrameGenerator(VideoFrameGenerator):
         frame_step = max(1, frame_step)
         # frames = []
         frame_i = 0
-        
         frame_num = 0
         
         while frame_num+nbframe < total_frames:
             video.set(cv.CAP_PROP_POS_FRAMES, frame_num)
-            batch_idx = 0
             frames = []
             for _ in range(nbframe):
-                grabbed, frame = vid.read()          
+                grabbed, frame = video.read()          
                 if not grabbed:
                     break
                 self.__add_and_convert_frame(
