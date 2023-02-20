@@ -34,26 +34,24 @@ class SplitFrameGenerator(VideoFrameGenerator):
     """
 
     def __init__(self, *args, nb_frames=5, **kwargs):
-        super().__init__(no_epoch_at_init=True, *args, **kwargs)
-        # self.sequence_time = sequence_time
-        super().__init__(nb_frames=nb_frames, *args, **kwargs)
+        super().__init__(no_epoch_at_init=True, nbframes=nb_frames, *args, **kwargs)
         # self.nb_frames = nb_frames
         self.sample_count = 0
         self.vid_info = []
         self.__frame_cache = {}
         self.on_epoch_end()
 
-    def on_epoch_end(self):
-        # prepare transformation to avoid __getitem__ to reinitialize them
-        if self.transformation is not None:
-            self._random_trans = []
-            for _ in range(len(self.vid_info)):
-                self._random_trans.append(
-                    self.transformation.get_random_transform(self.target_shape)
-                )
+    # def on_epoch_end(self):
+    #     # prepare transformation to avoid __getitem__ to reinitialize them
+    #     if self.transformation is not None:
+    #         self._random_trans = []
+    #         for _ in range(len(self.vid_info)):
+    #             self._random_trans.append(
+    #                 self.transformation.get_random_transform(self.target_shape)
+    #             )
 
-        if self.shuffle:
-            np.random.shuffle(self.indexes)
+    #     if self.shuffle:
+    #         np.random.shuffle(self.indexes)
 
     def __len__(self):
         return int(np.floor(len(self.vid_info) / self.batch_size))
@@ -87,8 +85,9 @@ class SplitFrameGenerator(VideoFrameGenerator):
         )
 
     def _get_frames(
-        self, video, nbframe, shape, fps, total_frames, force_no_headers=False):
+        self, video, nbframe, shape, force_no_headers=False):
         cap = cv.VideoCapture(video)
+        fps = cap.get(cv.CAP_PROP_FPS)
         total_frames = self.count_frames(cap, video, force_no_headers)
         orig_total = total_frames
 
@@ -124,7 +123,7 @@ class SplitFrameGenerator(VideoFrameGenerator):
         #     # That means that frame count in header is wrong or broken,
         #     # so we need to force the full read of video to get the right
         #     # frame counter
-        #     return self._get_frames(video, nbframe, shape, fps, total_frames, force_no_headers=True)
+        #     return self._get_frames(video, nbframe, shape, force_no_headers=True)
 
         if force_no_headers and len(frames) != nbframe:
             # and if we really couldn't find the real frame counter
@@ -152,9 +151,12 @@ class SplitFrameGenerator(VideoFrameGenerator):
             if self.transformation is not None:
                 transformation = self._random_trans[i]
 
-            vid = self.vid_info[i]
-            video = vid.get("name")
-            fps = vid.get("fps")
+            # vid = self.vid_info[i]
+            # video = vid.get("name")
+            # fps = vid.get("fps")
+
+            video = self.files[i]
+            classname = self._get_classname(video)
             # frame_count = vid.get("frame_count")
             classname = self._get_classname(video)
 
@@ -163,11 +165,11 @@ class SplitFrameGenerator(VideoFrameGenerator):
             col = classes.index(classname)
             label[col] = 1.0
 
-            video_id = vid["id"]
-            if video_id not in self.__frame_cache:
-                frames: Iterable = self._get_frames(video, nbframe, shape, fps)
+            # video_id = vid["id"]
+            if video not in self.__frame_cache:
+                frames = self._get_frames(video, nbframe, shape)
             else:
-                frames: Iterable = self.__frame_cache[video_id]
+                frames = self.__frame_cache[video]
 
             # apply transformation
             if transformation is not None:
