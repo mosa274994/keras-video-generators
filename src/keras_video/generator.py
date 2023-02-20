@@ -317,7 +317,7 @@ class VideoFrameGenerator(Sequence):  # pylint: disable=too-many-instance-attrib
         return self.next()
 
     def __len__(self):
-        return #
+        return int(np.floor(self.files_count / self.batch_size))
 
     def __getitem__(self, index):
         classes = self.classes
