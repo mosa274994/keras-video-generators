@@ -35,9 +35,6 @@ class SplitFrameGenerator(VideoFrameGenerator):
 
     def __init__(self, *args, nb_frames=5, **kwargs):
         super().__init__(nbframes=nb_frames, *args, **kwargs)
-        # self.nb_frames = nb_frames
-        # self.sample_count = 0
-        #self.vid_info = []
         self.__frame_cache = {}
         self.on_epoch_end()
 
@@ -53,8 +50,8 @@ class SplitFrameGenerator(VideoFrameGenerator):
     #     if self.shuffle:
     #         np.random.shuffle(self.indexes)
 
-    def __len__(self):
-        return int(np.floor(len(self.files) / self.batch_size))
+    # def __len__(self):
+    #     return int(np.floor(len(self.files) / self.batch_size))
 
     def get_validation_generator(self):
         """ Return the validation generator if you've provided split factor """
@@ -168,9 +165,10 @@ class SplitFrameGenerator(VideoFrameGenerator):
             # video_id = vid["id"]
             if video not in self.__frame_cache:
                 frames = self._get_frames(video, nbframe, shape)
-                print(len(frames))
             else:
                 frames = self.__frame_cache[video]
+
+            frames = list(frames)
 
             # apply transformation
             if transformation is not None:
