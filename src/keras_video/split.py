@@ -34,7 +34,7 @@ class SplitFrameGenerator(VideoFrameGenerator):
     """
 
     def __init__(self, *args, nb_frames=5, **kwargs):
-        super().__init__(no_epoch_at_init=True, nbframes=nb_frames, *args, **kwargs)
+        super().__init__(nbframes=nb_frames, *args, **kwargs)
         # self.nb_frames = nb_frames
         self.sample_count = 0
         self.vid_info = []
