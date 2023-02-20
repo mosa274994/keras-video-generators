@@ -36,8 +36,8 @@ class SplitFrameGenerator(VideoFrameGenerator):
     def __init__(self, *args, nb_frames=5, **kwargs):
         super().__init__(nbframes=nb_frames, *args, **kwargs)
         # self.nb_frames = nb_frames
-        self.sample_count = 0
-        self.vid_info = []
+        # self.sample_count = 0
+        #self.vid_info = []
         self.__frame_cache = {}
         self.on_epoch_end()
 
@@ -54,7 +54,7 @@ class SplitFrameGenerator(VideoFrameGenerator):
     #         np.random.shuffle(self.indexes)
 
     def __len__(self):
-        return int(np.floor(len(self.vid_info) / self.batch_size))
+        return int(np.floor(len(self.files) / self.batch_size))
 
     def get_validation_generator(self):
         """ Return the validation generator if you've provided split factor """
@@ -104,10 +104,10 @@ class SplitFrameGenerator(VideoFrameGenerator):
         frame_num = 0
         
         while frame_num+nbframe < total_frames:
-            video.set(cv.CAP_PROP_POS_FRAMES, frame_num)
+            cap.set(cv.CAP_PROP_POS_FRAMES, frame_num)
             frames = []
             for _ in range(nbframe):
-                grabbed, frame = video.read()          
+                grabbed, frame = cap.read()          
                 if not grabbed:
                     break
                 self.__add_and_convert_frame(
@@ -168,6 +168,7 @@ class SplitFrameGenerator(VideoFrameGenerator):
             # video_id = vid["id"]
             if video not in self.__frame_cache:
                 frames = self._get_frames(video, nbframe, shape)
+                print(len(frames))
             else:
                 frames = self.__frame_cache[video]
 

@@ -39,6 +39,7 @@ def show_sample(g, index=0, random=False, row_width=22, row_height=5):
     for batchid, sequence in enumerate(sequences):
         classid = np.argmax(labels[batchid])
         classname = g.classes[classid]
+        sequence = list(sequence)
         cols = len(sequence)
         for image in sequence:
             plt.subplot(rows, cols, index)
