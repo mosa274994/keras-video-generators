@@ -30,11 +30,12 @@ sequence has got 5 frames sized to ``(224, 224)`` in RGB.
 
 __version__ = "1.2.0"
 
-from . import flow, generator, sliding
+from . import flow, generator, sliding, split
 
 VideoFrameGenerator = generator.VideoFrameGenerator
 OpticalFlowGenerator = flow.OpticalFlowGenerator
 SlidingFrameGenerator = sliding.SlidingFrameGenerator
+SplitFrameGenerator = split.SplitFrameGenerator
 
 METHOD_OPTICAL_FLOW = flow.METHOD_OPTICAL_FLOW
 METHOD_FLOW_MASK = flow.METHOD_FLOW_MASK

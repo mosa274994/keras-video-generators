@@ -1,40 +1,17 @@
 """
-Sliding frames
---------------
-
-That module provides the SlidingFrameGenerator that is helpful
-to get more sequence from one video file. The goal is to provide decayed
-sequences for the same action.
-
-
+TODO: description of file
 """
-
-from typing import Iterable
 
 import cv2 as cv
 import numpy as np
+import tensorflow.keras.preprocessing.image as kimage
 
 from .generator import VideoFrameGenerator
 
 
-class SlidingFrameGenerator(VideoFrameGenerator):
+class SplitFrameGenerator(VideoFrameGenerator):
     """
-    SlidingFrameGenerator is useful to get several sequence of
-    the same "action" by sliding the cursor of video. For example, with a
-    video that have 60 frames using 30 frames per second, and if you want
-    to pick 6 frames, the generator will return:
-
-    - one sequence with frame ``[ 0,  5, 10, 15, 20, 25]``
-    - then ``[ 1,  6, 11, 16, 21, 26])``
-    - and so on to frame 30
-
-    If you set `sequence_time` parameter, so the sequence will be reduce to
-    the given time.
-
-    params:
-
-    - sequence_time: int seconds of the sequence to fetch, if None, the entire \
-        vidoe time is used
+    TODO
 
     from VideoFrameGenerator:
 
@@ -55,8 +32,8 @@ class SlidingFrameGenerator(VideoFrameGenerator):
 
     def __init__(self, *args, sequence_time: int = None, **kwargs):
         super().__init__(no_epoch_at_init=True, *args, **kwargs)
-        self.sequence_time = sequence_time
-
+        # self.sequence_time = sequence_time
+        super().__init__(nb_frames=nb_frames + 1, *args, **kwargs)
         self.sample_count = 0
         self.vid_info = []
         self.__frame_cache = {}
@@ -144,6 +121,58 @@ class SlidingFrameGenerator(VideoFrameGenerator):
             _test_data=self.test,
         )
 
+    def _get_frames(
+        self, video, nbframe, shape, fps, total_frames, force_no_headers=False
+    ) -> Optional[Iterable]:
+        cap = cv.VideoCapture(video)
+        total_frames = self.count_frames(cap, video, force_no_headers)
+        orig_total = total_frames
+
+        if total_frames % 2 != 0:
+            total_frames += 1
+        
+        # Experiment with the frames_step (skip_rate)
+        frame_step = floor(fps / 5)
+        # TODO: fix that, a tiny video can have a frame_step that is
+        # under 1
+        frame_step = max(1, frame_step)
+        # frames = []
+        frame_i = 0
+        
+        frame_num = 0
+        
+        while frame_num+nbframe < total_frames:
+            video.set(cv.CAP_PROP_POS_FRAMES, frame_num)
+            batch_idx = 0
+            frames = []
+            for _ in range(nbframe):
+                grabbed, frame = vid.read()          
+                if not grabbed:
+                    break
+                self.__add_and_convert_frame(
+                    frame, frame_i, frames, orig_total, shape, frame_step
+                )
+            frame_num += nbframe
+            yield np.array(frames)
+
+        cap.release()
+
+        # if not force_no_headers and len(frames) != nbframe:
+        #     # There is a problem here
+        #     # That means that frame count in header is wrong or broken,
+        #     # so we need to force the full read of video to get the right
+        #     # frame counter
+        #     return self._get_frames(video, nbframe, shape, fps, total_frames, force_no_headers=True)
+
+        if force_no_headers and len(frames) != nbframe:
+            # and if we really couldn't find the real frame counter
+            # so we return None. Sorry, nothing can be done...
+            log.error(
+                f"Frame count is not OK for video {video}, "
+                f"{total_frames} total, {len(frames)} extracted"
+            )
+            return None
+    
     def __getitem__(self, idx):
         classes = self.classes
         shape = self.target_shape
@@ -164,7 +193,7 @@ class SlidingFrameGenerator(VideoFrameGenerator):
             vid = self.vid_info[i]
             video = vid.get("name")
             fps = vid.get("fps")
-            frame_count = vid.get("frame_count")
+            # frame_count = vid.get("frame_count")
             classname = self._get_classname(video)
 
             # create a label array and set 1 to the right column
@@ -174,10 +203,10 @@ class SlidingFrameGenerator(VideoFrameGenerator):
 
             video_id = vid["id"]
             if video_id not in self.__frame_cache:
-                frames: Iterable = self._get_frames(video, nbframe, shape)
+                frames: Iterable = self._get_frames(video, nbframe, shape, fps)
             else:
                 frames: Iterable = self.__frame_cache[video_id]
-                        
+
             # apply transformation
             if transformation is not None:
                 frames = [
